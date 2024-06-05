@@ -1,8 +1,5 @@
 ### IMPORTS ###
-import json
-import time
-import os
-import re
+import json, time, os, re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,7 +8,7 @@ from selenium.webdriver.chrome.options import Options
 
 ### GLOBAL ARGS ###
 SCRAPING_WEBSITE = "https://www.indiegogo.com/explore/home?project=all&project=all&sort=trending"
-NUM_OF_ITEMS = 10
+NUM_OF_ITEMS = 300
 
 # Setup Chrome options
 chrome_options = Options()
@@ -20,12 +17,12 @@ chrome_options.add_argument("--headless")  # Run headless Chrome
 # Initialize the WebDriver
 driver = webdriver.Chrome(options=chrome_options)
 driver.get(SCRAPING_WEBSITE)
-driver.implicitly_wait(10)
+driver.implicitly_wait(5)
 
 body = driver.find_element(By.CSS_SELECTOR, 'body')
 
 # Scroll and click "Show More" button to load more items
-for i in range(NUM_OF_ITEMS // 7):  # Adjust this divisor based on the average items loaded per click/scroll
+for i in range(NUM_OF_ITEMS // 12):  # Adjust this divisor based on the average items loaded per click/scroll
     try:
         show_more_button = driver.find_element(By.XPATH, '//button[@gogo_test="show_more"]')
         if show_more_button:
@@ -53,7 +50,7 @@ records = []
 for idx, project_url in enumerate(project_links[:NUM_OF_ITEMS], start=1):
     try:
         driver.get(project_url)
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(3)
         project_soup = BeautifulSoup(driver.page_source, 'html.parser')
 
         # Extracting data from the individual project page
@@ -86,10 +83,8 @@ for idx, project_url in enumerate(project_links[:NUM_OF_ITEMS], start=1):
         flexible_goal = 'True' if flexible_goal_div and 'Flexible Goal' in flexible_goal_div.get_text(strip=True) else 'False'
 
         creators_div = project_soup.find('div', class_='basicsCampaignOwner-details-name')
-        creators = creators_div.get_text(strip=True) if creators_div else 'N/A'
-
-        # Ensure the creator's name is captured fully without duplication
-        creators = ' '.join(dict.fromkeys(creators.split()))
+        creators_text = creators_div.get_text() if creators_div else 'N/A'
+        creators = creators_text.split('\n')[1].strip() if '\n' in creators_text else creators_text.strip()
 
         # Debugging print statements
         print(f"Project ID: {idx}")
