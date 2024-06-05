@@ -1,68 +1,137 @@
-import time, csv, re
+### IMPORTS ###
+import json
+import time
+import os
+import re
 from bs4 import BeautifulSoup
+from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver import Chrome
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 
+### GLOBAL ARGS ###
+SCRAPING_WEBSITE = "https://www.indiegogo.com/explore/home?project=all&project=all&sort=trending"
+NUM_OF_ITEMS = 10
 
-driver = Chrome()
+# Setup Chrome options
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # Run headless Chrome
 
-driver.get('http://www.olympedia.org/statistics/medal/country')
+# Initialize the WebDriver
+driver = webdriver.Chrome(options=chrome_options)
+driver.get(SCRAPING_WEBSITE)
 driver.implicitly_wait(10)
 
-year_dd = driver.find_element(by=By.ID, value='edition_select')
-year_options = year_dd.find_elements(by=By.TAG_NAME, value='option')
+body = driver.find_element(By.CSS_SELECTOR, 'body')
 
-gender_dd = driver.find_element(by=By.ID, value='athlete_gender')
-gender_options = gender_dd.find_elements(by=By.TAG_NAME, value='option')
+# Scroll and click "Show More" button to load more items
+for i in range(NUM_OF_ITEMS // 7):  # Adjust this divisor based on the average items loaded per click/scroll
+    try:
+        show_more_button = driver.find_element(By.XPATH, '//button[@gogo_test="show_more"]')
+        if show_more_button:
+            show_more_button.click()
+            time.sleep(1)  # Wait for the page to load new content
+    except Exception as e:
+        body.send_keys(Keys.PAGE_DOWN)
+        time.sleep(1)  # Wait for the page to load new content
+    print(f"Loading more items... Iteration {i+1}")
 
-print(year_options[29].get_attribute('text'))
+# Get page source and parse with BeautifulSoup
+soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-usa_lst = []
+# Find all project URLs
+project_links = []
+for a in soup.select('a[href*="/projects/"]'):
+    href = a['href']
+    if href.startswith('/projects/'):
+        project_links.append(f"https://www.indiegogo.com{href}")
 
-for gender in gender_options[1:]:
-    gender.click()
-    time.sleep(2)
-    gender_val = gender.get_attribute('text')
-    # print(year_options[0].get_attribute('text'))
+# Print the number of project links found for debugging
+print(f"Number of project links found: {len(project_links)}")
 
-    for year in year_options[2:]:
-        year.click()
+records = []
+for idx, project_url in enumerate(project_links[:NUM_OF_ITEMS], start=1):
+    try:
+        driver.get(project_url)
+        driver.implicitly_wait(10)
+        project_soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-        time.sleep(1)  # provide time for processing the page update
+        # Extracting data from the individual project page
+        project_title_div = project_soup.find('div', class_='basicsSection-title')
+        project_title = project_title_div.get_text(strip=True) if project_title_div else 'N/A'
 
-        the_soup = BeautifulSoup(driver.page_source, 'html.parser')
+        project_text_div = project_soup.find('div', class_='basicsSection-tagline')
+        project_text = project_text_div.get_text(strip=True) if project_text_div else 'N/A'
 
-        try:
-            year_val = year.get_attribute('text')
-            head = the_soup.find(href=re.compile('USA'))
+        dollars_pledged_div = project_soup.find('div', class_='basicsGoalProgress-amountTowardsGoal')
+        dollars_pledged_text = dollars_pledged_div.get_text(strip=True) if dollars_pledged_div else 'N/A'
+        dollars_pledged = re.findall(r'\d+', dollars_pledged_text.replace(',', ''))
+        dollars_pledged = dollars_pledged[0] if dollars_pledged else 'N/A'
 
-            medal_values = head.find_all_next('td', limit=5)
-            val_lst = [x.string for x in medal_values[-4:]]
+        # Extracting the correct DollarsGoal
+        dollars_goal_div = project_soup.find('span', class_='basicsGoalProgress-progressDetails-detailsGoal-goalPercentageOrInitiallyRaised')
+        dollars_goal_text = dollars_goal_div.get_text(strip=True) if dollars_goal_div else 'N/A'
+        dollars_goal_matches = re.findall(r'of ₪(\d+)', dollars_goal_text.replace(',', ''))
+        dollars_goal = dollars_goal_matches[0] if dollars_goal_matches else 'N/A'
 
-        except:
-            val_lst = ['0' for x in range(4)]
+        num_backers_div = project_soup.find('span', class_='basicsGoalProgress-claimedOrBackers')
+        num_backers_text = num_backers_div.get_text(strip=True) if num_backers_div else 'N/A'
+        num_backers = re.findall(r'\d+', num_backers_text)
+        num_backers = num_backers[0] if num_backers else 'N/A'
 
-        val_lst.append(gender_val)
-        val_lst.append(year_val)
+        days_to_go_div = project_soup.find('div', class_='basicsGoalProgress-progressDetails-detailsTimeLeft')
+        days_to_go = re.findall(r'\d+', days_to_go_div.get_text(strip=True))[0] if days_to_go_div else 'InDemand'
 
-        usa_lst.append(val_lst)
+        flexible_goal_div = project_soup.find('span', class_='basicsGoalProgress-progressDetails-detailsGoal-goalPopover')
+        flexible_goal = 'True' if flexible_goal_div and 'Flexible Goal' in flexible_goal_div.get_text(strip=True) else 'False'
 
-        if year_val == '2020':
-            break
+        creators_div = project_soup.find('div', class_='basicsCampaignOwner-details-name')
+        creators = creators_div.get_text(strip=True) if creators_div else 'N/A'
 
-driver.quit()
+        # Ensure the creator's name is captured fully without duplication
+        creators = ' '.join(dict.fromkeys(creators.split()))
 
-print(usa_lst[30])
-print(usa_lst[31])
+        # Debugging print statements
+        print(f"Project ID: {idx}")
+        print(f"Project URL: {project_url}")
+        print(f"Project Title: {project_title}")
+        print(f"Project Text: {project_text}")
+        print(f"Dollars Pledged: {dollars_pledged}")
+        print(f"Dollars Goal: {dollars_goal}")
+        print(f"Num Backers: {num_backers}")
+        print(f"Days To Go: {days_to_go}")
+        print(f"Flexible Goal: {flexible_goal}")
+        print(f"Creators: {creators}")
 
-try:
-    output_f = open('output.csv', 'w', newline='')
-    output_writer = csv.writer(output_f)
-    for row in usa_lst:
-        output_writer.writerow(row)
+        records.append({
+            'id': str(idx),
+            'url': project_url,
+            'Creators': creators,
+            'Title': project_title,
+            'Text': project_text,
+            'DollarsPledged': dollars_pledged,
+            'DollarsGoal': dollars_goal,
+            'NumBackers': num_backers,
+            'DaysToGo': days_to_go,
+            'FlexibleGoal': flexible_goal
+        })
+    except Exception as e:
+        print(f"Error extracting project {project_url}: {e}")
 
-except:
-    pass
-finally:
-    output_f.close()
-    print('done')
+# Structure the data as specified
+data = {
+    "records": {
+        "record": records
+    }
+}
+
+# Define the output directory outside the current folder
+output_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output')
+os.makedirs(output_directory, exist_ok=True)
+
+# Export data to JSON in the output directory
+output_path = os.path.join(output_directory, 'problem1.json')
+with open(output_path, 'w') as f:
+    json.dump(data, f, indent=4)
+
+print(f"Data successfully saved to {output_path}")
