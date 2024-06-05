@@ -41,40 +41,40 @@ records = []
 for idx, project_url in enumerate(project_links[:NUM_OF_ITEMS], start=1):
     try:
         driver.get(project_url)
-        driver.implicitly_wait(15)
-        project_soup = BeautifulSoup(driver.page_source, 'html.parser')
+        driver.implicitly_wait(10)
+        project = BeautifulSoup(driver.page_source, 'html.parser')
 
-        project_title_div = project_soup.find('div', class_='basicsSection-title')
+        project_title_div = project.find('div', class_='basicsSection-title')
         project_title = project_title_div.get_text(strip=True) if project_title_div else 'N/A'
 
-        project_text_div = project_soup.find('div', class_='basicsSection-tagline')
+        project_text_div = project.find('div', class_='basicsSection-tagline')
         project_text = project_text_div.get_text(strip=True) if project_text_div else 'N/A'
 
-        dollars_pledged_div = project_soup.find('div', class_='basicsGoalProgress-amountTowardsGoal')
+        dollars_pledged_div = project.find('div', class_='basicsGoalProgress-amountTowardsGoal')
         dollars_pledged_text = dollars_pledged_div.get_text(strip=True) if dollars_pledged_div else 'N/A'
         dollars_pledged = re.findall(r'\d+', dollars_pledged_text.replace(',', ''))
         dollars_pledged = dollars_pledged[0] if dollars_pledged else 'N/A'
 
-        dollars_goal_div = project_soup.find('span',
+        dollars_goal_div = project.find('span',
                                              class_='basicsGoalProgress-progressDetails-detailsGoal-goalPercentageOrInitiallyRaised')
         dollars_goal_text = dollars_goal_div.get_text(strip=True) if dollars_goal_div else 'N/A'
         dollars_goal_matches = re.findall(r'of ₪(\d+)', dollars_goal_text.replace(',', ''))
         dollars_goal = dollars_goal_matches[0] if dollars_goal_matches else 'N/A'
 
-        num_backers_div = project_soup.find('span', class_='basicsGoalProgress-claimedOrBackers')
+        num_backers_div = project.find('span', class_='basicsGoalProgress-claimedOrBackers')
         num_backers_text = num_backers_div.get_text(strip=True) if num_backers_div else 'N/A'
         num_backers = re.findall(r'\d+', num_backers_text)
         num_backers = num_backers[0] if num_backers else 'N/A'
 
-        days_to_go_div = project_soup.find('div', class_='basicsGoalProgress-progressDetails-detailsTimeLeft')
+        days_to_go_div = project.find('div', class_='basicsGoalProgress-progressDetails-detailsTimeLeft')
         days_to_go = re.findall(r'\d+', days_to_go_div.get_text(strip=True))[0] if days_to_go_div else 'InDemand'
 
-        flexible_goal_div = project_soup.find('span',
+        flexible_goal_div = project.find('span',
                                               class_='basicsGoalProgress-progressDetails-detailsGoal-goalPopover')
         flexible_goal = 'True' if flexible_goal_div and 'Flexible Goal' in flexible_goal_div.get_text(
             strip=True) else 'False'
 
-        creators_div = project_soup.find('div', class_='basicsCampaignOwner-details-name')
+        creators_div = project.find('div', class_='basicsCampaignOwner-details-name')
         creators_text = creators_div.get_text() if creators_div else 'N/A'
         creators = creators_text.split('\n')[1].strip() if '\n' in creators_text else creators_text.strip()
 
