@@ -40,6 +40,9 @@ df['NumBackers'] = pd.to_numeric(df['NumBackers'], errors='coerce')
 df['DaysToGo'] = pd.to_numeric(df['DaysToGo'], errors='coerce')
 df.dropna(how='all', inplace=True)
 
+### DELETE TOP 5 ENTRIES IN DollarsPledged ###
+# df = df.sort_values(by='DollarsPledged', ascending=False).iloc[5:]
+
 ### STATS ###
 stats = analyze_data(df)
 
