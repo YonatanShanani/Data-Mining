@@ -26,7 +26,7 @@ for i in range(NUM_OF_ITEMS // ENTRIES_FOUND_PER_SCROLL):
     except Exception as e:
         body.send_keys(Keys.PAGE_DOWN)
         time.sleep(1)
-6
+
 soup = BeautifulSoup(driver.page_source, 'html.parser')
 
 ### FIND PROJECT URLS ###
