@@ -1,0 +1,40 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Define the path to the folder containing the data files
+folder_path = 'C:/Users/yonat/Downloads/names'
+
+# Define the names to visualize
+names_to_visualize = ['Archie', 'Jon', 'Louis', 'Arya']
+
+# Initialize an empty DataFrame to hold the data
+all_data = pd.DataFrame()
+
+# Read and process each file
+for filename in os.listdir(folder_path):
+    if filename.startswith('yob') and filename.endswith('.txt'):
+        year = int(filename[3:7])
+        if year >= 1996:
+            file_path = os.path.join(folder_path, filename)
+            yearly_data = pd.read_csv(file_path, names=['Name', 'Gender', 'Count'])
+            yearly_data['Year'] = year
+            all_data = pd.concat([all_data, yearly_data])
+
+# Filter the data to include only the selected names
+filtered_data = all_data[all_data['Name'].isin(names_to_visualize)]
+
+# Pivot the data to have years as the index and names as columns
+pivot_data = filtered_data.pivot_table(index='Year', columns='Name', values='Count', aggfunc='sum', fill_value=0)
+
+# Plot the data
+plt.figure(figsize=(12, 8))
+for name in names_to_visualize:
+    plt.plot(pivot_data.index, pivot_data[name], label=name)
+
+plt.title('Number of Babies Registered with Selected Names (1996-2023)')
+plt.xlabel('Year')
+plt.ylabel('Number of Babies')
+plt.legend()
+plt.grid(True)
+plt.show()
