@@ -21,7 +21,7 @@ def get_tv_show_links(main_url):
     for div in soup.find_all('div',
                              class_='ipc-poster ipc-poster--base ipc-poster--dynamic-width ipc-sub-grid-item ipc-sub-grid-item--span-2'):
         a_tag = div.find('a', class_='ipc-lockup-overlay')
-        if a_tag:
+        if a_tag and len(tv_show_links)<10:
             tv_show_links.append('https://www.imdb.com' + a_tag['href'])
 
     print(f"Found {len(tv_show_links)} TV show links.")
@@ -55,7 +55,7 @@ def get_top_characters(tv_show_url):
             character_name = character_list.find('span', class_='sc-bfec09a1-4 kvTUwN')
             if character_name:
                 characters.append(character_name.text)
-            if len(characters) >= 10:
+            if len(characters) >= 6:
                 break
 
     print(f"Found {len(characters)} characters.")
@@ -63,7 +63,7 @@ def get_top_characters(tv_show_url):
 
 
 def main():
-    main_url = "https://www.imdb.com/search/title/?title_type=tv_series&moviemeter=1,100"
+    main_url = "https://www.imdb.com/search/title/?title_type=tv_series&sort=num_votes,desc"
     tv_show_links = get_tv_show_links(main_url)
 
     tv_show_data = []
